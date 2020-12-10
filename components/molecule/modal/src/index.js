@@ -13,8 +13,17 @@ import {SUPPORTED_KEYS} from './config'
 import {suitClass} from './helpers'
 import {Close} from './Close'
 import {HeaderRender} from './HeaderRender'
+import MoleculeModalContent from './Content'
+import MoleculeModalFooter from './Footer'
 import WithAnimation from './HoC/WithAnimation'
 import WithUrlState from './HoC/WithUrlState'
+
+export const MODAL_SIZES = {
+  XSMALL: 'xsmall',
+  SMALL: 'small',
+  MEDIUM: 'medium',
+  LARGE: 'large'
+}
 
 const toggleWindowScroll = disableScroll => {
   window.document.body.classList.toggle('is-MoleculeModal-open', disableScroll)
@@ -26,6 +35,7 @@ const MoleculeModal = ({
   children,
   iconClose,
   floatingIconClose,
+  size,
   isOpen,
   fitWindow,
   fitContent,
@@ -36,9 +46,9 @@ const MoleculeModal = ({
   closeOnOutsideClick,
   closeOnEscKeyDown,
   onClose,
-  enableContentScroll
+  enableContentScroll,
+  isContentless
 }) => {
-  const contentRef = useRef()
   const wrapperRef = useRef()
 
   const [isClientReady, setIsClientReady] = useState(false)
@@ -87,34 +97,19 @@ const MoleculeModal = ({
     }
   }, [onKeyDown])
 
-  const preventScrollIfNeeded = ev => {
-    const {clientHeight, scrollHeight} = contentRef.current
-    const noScroll = scrollHeight <= clientHeight
-    if (!enableContentScroll && noScroll) ev.preventDefault()
-  }
-
-  const avoidOverscroll = () => {
-    const {offsetHeight, scrollTop, scrollHeight} = contentRef.current
-    const currentScroll = scrollTop + offsetHeight
-
-    if (scrollTop === 0) {
-      contentRef.current.scrollTop = 1
-    } else if (currentScroll >= scrollHeight) {
-      contentRef.current.scrollTop = scrollTop - 1
-    }
-  }
-
   const handleOutsideClick = ev => {
     if (closeOnOutsideClick && ev.target === wrapperRef.current) {
       closeModal(ev)
     }
   }
 
-  const extendedChildren = Children.toArray(children).map(child =>
-    cloneElement(child, {
-      onClose: closeModal
-    })
-  )
+  const renderChildren = () => {
+    return Children.toArray(children).map(child =>
+      cloneElement(child, {
+        onClose: closeModal
+      })
+    )
+  }
 
   const renderModal = () => {
     const wrapperClassName = cx(suitClass(), {
@@ -125,11 +120,8 @@ const MoleculeModal = ({
     const dialogClassName = cx(suitClass({element: 'dialog'}), {
       [suitClass({element: 'dialog--full'})]: fitWindow,
       [suitClass({element: 'dialog--out'})]: isClosing,
-      [suitClass({element: 'dialog--fit'})]: fitContent
-    })
-
-    const contentClassName = cx(suitClass({element: 'content'}), {
-      [suitClass({element: 'content--without-indentation'})]: withoutIndentation
+      [suitClass({element: 'dialog--fit'})]: fitContent,
+      [suitClass({element: `dialog--${size}`})]: !!size
     })
 
     return (
@@ -155,14 +147,16 @@ const MoleculeModal = ({
               floatingIconClose={floatingIconClose}
             />
           )}
-          <div
-            className={contentClassName}
-            onTouchStart={avoidOverscroll}
-            onTouchMove={preventScrollIfNeeded}
-            ref={contentRef}
-          >
-            {extendedChildren}
-          </div>
+          {isContentless ? (
+            renderChildren()
+          ) : (
+            <MoleculeModalContent
+              enableContentScroll={enableContentScroll}
+              withoutIndentation={withoutIndentation}
+            >
+              {renderChildren()}
+            </MoleculeModalContent>
+          )}
         </div>
       </div>
     )
@@ -208,6 +202,10 @@ MoleculeModal.propTypes = {
    * true if you want a modal that fit contents in mobile devices, otherwise, false
    */
   fitContent: PropTypes.bool,
+  /**
+   * Max width of the modal to be used
+   */
+  size: PropTypes.oneOf(Object.values(MODAL_SIZES)),
   /**
    * true if you want a modal without content indentation
    */
@@ -279,6 +277,9 @@ const MoleculeModalWithAnimation = WithAnimation(MoleculeModal)
 const MoleculeModalWithUrlState = WithUrlState(MoleculeModalWithAnimation)
 
 MoleculeModalWithAnimation.displayName = 'MoleculeModal'
+
+MoleculeModalWithAnimation.Content = MoleculeModalContent
+MoleculeModalWithAnimation.Footer = MoleculeModalFooter
 
 export {MoleculeModalWithUrlState, MoleculeModalWithAnimation}
 export default MoleculeModalWithAnimation
